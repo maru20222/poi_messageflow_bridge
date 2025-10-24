@@ -1,0 +1,9 @@
+# ---- Exclude from GitHub auto-generated "Source code" archives ----
+# CI workflows (GitHub Actions)
+.github/ export-ignore
+
+# Screenshots and other repo-only images
+image/ export-ignore
+
+# Dev-only / housekeeping
+.gitignore export-ignore
