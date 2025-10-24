@@ -16,10 +16,10 @@ poi（艦これ専用ブラウザ）→ logbook-kai-messageflow（航海日誌�
 - 再接続＆多重起動ガード、ローカルWS(127.0.0.1)のみ
 
 ## 動作要件
-- Windows 10/11
-- poi（--remote-debugging-port=9222 で起動可能）
+- Windows 11
+- poi v11.0.0以降（--remote-debugging-port=9222 で起動可能）
 - Node.js 18+（推奨 20〜22）
-- 航海日誌改 + logbook-kai-messageflow（既定: WS 8890 / Web 8888）
+- 航海日誌改 v24.0.17以降 + logbook-kai-messageflow v1.0.1以降（既定: WS 8890 / Web 8888）
 
 ## 置き場所
 - 任意（例）:
