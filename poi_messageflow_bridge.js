@@ -134,7 +134,7 @@ function looksLikeBase64(s) {
   };
 
   // requestId を sessionId と合わせて管理
-  // key: `${sid||''}:${requestId}` -> { url, method, postData }
+  // key: `${sid||''}:${requestId}` -> { url, method, postData, _asked? }
   const reqInfo = new Map();
   // getResponseBody / Fetch.getResponseBody 応答待ち
   // key: `${sid||''}:${id}` -> { url, method, postData, kind, fetchRequestId? }
@@ -172,18 +172,15 @@ function looksLikeBase64(s) {
       send('Network.enable', {}, msg.params.sessionId);
       send('Network.setCacheDisabled', { cacheDisabled: true }, msg.params.sessionId);
       send('Network.clearBrowserCache', {}, msg.params.sessionId);
-      // /kcsapi/api_start2/getData を Response段階で横取り
       send('Fetch.enable', {
         patterns: [
-          { urlPattern: '*://*/kcsapi/api_start2/getData*',        requestStage: 'Response' },
-          { urlPattern: '*://*/kcsapi/api_get_member/require_info*', requestStage: 'Response' },
-          { urlPattern: '*://*/kcsapi/api_port/port*',               requestStage: 'Response' }
+          { urlPattern: '*://*/kcsapi/*', requestStage: 'Response' }
         ]
       }, msg.params.sessionId);
       return;
     }
 
-    // Fetch (Response stage) で getData を確実に確保
+    // Fetch (Response stage) で getData など /kcsapi/* を確実に確保
     if (msg.method === 'Fetch.requestPaused' && msg.params) {
       const p = msg.params; // {requestId, request, responseStatusCode, responseHeaders, networkId?}
       const url = (p.request && p.request.url) || '';
@@ -214,8 +211,17 @@ function looksLikeBase64(s) {
       reqInfo.set(key, {
         url: request.url,
         method: request.method || 'GET',
-        postData: request.postData || ''
+        postData: request.postData || '',
+        _asked: false
       });
+
+      // =questlist を見つけたらログ
+      try {
+        const u = new URL(request.url);
+        if (u.pathname.endsWith('/api_get_member/questlist')) {
+          console.log('[api] seen GET /kcsapi/api_get_member/questlist', u.search || '');
+        }
+      } catch {}
       return;
     }
 
@@ -230,6 +236,7 @@ function looksLikeBase64(s) {
         const cmd = send('Network.getResponseBody', { requestId: p.requestId }, sid);
         const pendKey = `${cmd.sessionId || ''}:${cmd.id}`;
         pending.set(pendKey, { url: info.url, method: info.method, postData: info.postData, kind: 'api' });
+        info._asked = true; reqInfo.set(key, info);
         return;
       }
 
@@ -237,9 +244,26 @@ function looksLikeBase64(s) {
         const cmd = send('Network.getResponseBody', { requestId: p.requestId }, sid);
         const pendKey = `${cmd.sessionId || ''}:${cmd.id}`;
         pending.set(pendKey, { url: info.url, method: info.method, kind: 'kcs2' });
+        info._asked = true; reqInfo.set(key, info);
         return;
       }
       return;
+    }
+
+    // loadingFinished フォールバック
+    // 稀に responseReceived で body を取り損ねる場合があるため保険で取得
+    if (msg.method === 'Network.loadingFinished') {
+      const p = msg.params || {};
+      const key = `${sid || ''}:${p.requestId}`;
+      const info = reqInfo.get(key);
+      if (info && info.url && info.url.includes('/kcsapi/') && !info._asked) {
+        try {
+          const cmd = send('Network.getResponseBody', { requestId: p.requestId }, sid);
+          const pendKey = `${cmd.sessionId || ''}:${cmd.id}`;
+          pending.set(pendKey, { url: info.url, method: info.method, postData: info.postData, kind: 'api' });
+          info._asked = true; reqInfo.set(key, info);
+        } catch {}
+      }
     }
 
     // 本文応答（Network.getResponseBody / Fetch.getResponseBody）
@@ -252,7 +276,7 @@ function looksLikeBase64(s) {
       const res = msg.result;
       if (!res || typeof res.body !== 'string') return;
 
-      // Fetch 経由で確保した getData
+      // Fetch 経由で確保した /kcsapi/*
       if (meta.kind === 'api_fetch') {
         const u   = new URL(meta.url);
         const uri = u.pathname + (u.search || '');
@@ -275,7 +299,7 @@ function looksLikeBase64(s) {
             ok = true; break;
           }
         }
-        if (ok) console.log('[api] sent (Fetch) /kcsapi/api_start2/getData', isB64 ? '(base64)' : '');
+        if (ok) console.log('[api] sent (Fetch)', uri, isB64 ? '(base64)' : '');
 
         // ブラウザにレスポンスを返して継続
         send('Fetch.continueResponse', { requestId: meta.fetchRequestId }, sid);
@@ -305,7 +329,9 @@ function looksLikeBase64(s) {
             ok = true; break;
           }
         }
-        if (ok && Math.random() < 0.1) console.log('[api] sent', uri, isB64 ? '(base64)' : '');
+        if (ok && (uri.endsWith('/api_get_member/questlist') || Math.random() < 0.1)) {
+          console.log('[api] sent', uri, isB64 ? '(base64)' : '');
+        }
         return;
       }
 
