@@ -1,5 +1,11 @@
 # poi_messageflow_bridge
 
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/maru20222/poi_messageflow_bridge)](https://github.com/maru20222/poi_messageflow_bridge/releases/latest)
+[![GitHub](https://img.shields.io/github/license/maru20222/poi_messageflow_bridge)](LICENSE)
+[![GitHub All Releases](https://img.shields.io/github/downloads/maru20222/poi_messageflow_bridge/total)](https://github.com/maru20222/poi_messageflow_bridge/releases)
+[![GitHub Release Date](https://img.shields.io/github/release-date/maru20222/poi_messageflow_bridge)](https://github.com/maru20222/poi_messageflow_bridge/releases)
+
+
 poi（艦これ専用ブラウザ）→ logbook-kai-messageflow（航海日誌改の外部ツール）へ  
 **/kcsapi（API）・/kcs2（画像/JSON）** を転送する Node.js ブリッジ。
 

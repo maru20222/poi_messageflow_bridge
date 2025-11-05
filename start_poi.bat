@@ -43,8 +43,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 :: --- 4) ブリッジ起動（落ちたら自動再起動）
 :loop
 echo [bat] starting %BRIDGE_JS%
-node "%BRIDGE_JS%" >> "%BRIDGE_LOG%" 2>&1
-echo [bat] bridge exited. restart in 5s... >> "%BRIDGE_LOG%" 2>&1
+node "%BRIDGE_JS%"
+echo [bat] bridge exited. restart in 5s...
 timeout /t 5 >nul
 goto loop
 

@@ -1,4 +1,4 @@
-// poi_messageflow_bridge.js (v6)
+// poi_messageflow_bridge.js
 // 目的: poi の CDP Network/Fetch から /kcsapi と /kcs2(画像/.json/音声等) を取得し、
 //       航海日誌改 MessageFlow へ SockJS 互換 WebSocketで送信（失敗時はHTTP POST）。
 // 特徴: webview 明示アタッチ / session対応 / WS自動再接続 / キャッシュ無効化&クリア
@@ -8,6 +8,94 @@ const http = require('http');
 const https = require('https');
 const { request: httpRequest } = require('http');
 const WebSocket = require('ws');
+
+// ===== ロガー（logs/YYYY-MM.log, 月次ローテ＆タイムスタンプ, consoleフック）=====
+const fs = require('fs');
+const path = require('path');
+const util = require('util');
+
+function initLogger(options = {}) {
+  const cwdLogs = path.resolve(process.cwd(), 'logs');
+  const baseDir = options.baseDir || cwdLogs;        // 作業ディレクトリ直下に logs/
+  const mirrorToStdout = process.env.LOG_STDOUT !== '0'; // 既定: コンソールにも出す。0で抑止
+
+  if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
+
+  const stamp = () => {
+    const d = new Date();
+    // 例: 2025-11-05 21:03:12.345
+    const pad = (n, w=2) => `${n}`.padStart(w, '0');
+    const YYYY = d.getFullYear();
+    const MM   = pad(d.getMonth()+1);
+    const DD   = pad(d.getDate());
+    const hh   = pad(d.getHours());
+    const mm   = pad(d.getMinutes());
+    const ss   = pad(d.getSeconds());
+    const ms   = pad(d.getMilliseconds(), 3);
+    return `${YYYY}-${MM}-${DD} ${hh}:${mm}:${ss}.${ms}`;
+  };
+
+  const monthKey = (d=new Date()) => {
+    const YYYY = d.getFullYear();
+    const MM   = String(d.getMonth()+1).padStart(2, '0');
+    return `${YYYY}-${MM}`;
+  };
+
+  let currentKey = null;
+  let stream = null;
+
+  function ensureStream() {
+    const key = monthKey();
+    if (key !== currentKey || !stream) {
+      // 旧ストリームを閉じる
+      if (stream) { try { stream.end(); } catch {} }
+      currentKey = key;
+      const file = path.join(baseDir, `${key}.log`);
+      stream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf8' });
+    }
+  }
+
+  function writeLine(level, args) {
+    ensureStream();
+    const line = `[${stamp()}][${level}] ` + util.format(...args) + '\n';
+    try { stream.write(line); } catch {}
+    if (mirrorToStdout) {
+      // レベルに応じて出し分け
+      if (level === 'ERROR') process.stderr.write(line);
+      else process.stdout.write(line);
+    }
+  }
+
+  function hookConsole() {
+    const ol = console.log, ow = console.warn, oe = console.error;
+    console.log  = (...a) => writeLine('INFO',  a);
+    console.warn = (...a) => writeLine('WARN',  a);
+    console.error= (...a) => writeLine('ERROR', a);
+    // 退避した元関数も必要なら使えるよう返す
+    return { ol, ow, oe };
+  }
+
+  function sessionBanner(note='') {
+    ensureStream();
+    writeLine('INFO', ['===============================================================']);
+    writeLine('INFO', ['session start %s %s', new Date().toISOString(), note]);
+  }
+
+  function close() { if (stream) { try { stream.end(); } catch {} } }
+
+  // プロセス終了時に綺麗に閉じる
+  process.on('SIGINT',  () => { writeLine('INFO', ['SIGINT received']);  close(); process.exit(0); });
+  process.on('SIGTERM', () => { writeLine('INFO', ['SIGTERM received']); close(); process.exit(0); });
+  process.on('uncaughtException', (e) => { writeLine('ERROR', ['uncaughtException: %s', e && e.stack || e]); close(); process.exit(1); });
+  process.on('unhandledRejection', (e) => { writeLine('ERROR', ['unhandledRejection: %s', e && e.stack || e]); });
+
+  return { hookConsole, sessionBanner, close };
+}
+
+// ここで有効化
+const logger = initLogger();        // logs/ に書き出し
+logger.hookConsole();               // 以降の console.* は全てログ＋(既定)stdoutへ
+logger.sessionBanner('poi_messageflow_bridge');
 
 // ===== 設定 =====
 const CDP_HOST = process.env.CDP_HOST || '127.0.0.1';
@@ -28,9 +116,6 @@ const HTTP_FALLBACKS = {
   image:     ['http://127.0.0.1:8890/image'],
   imageJson: ['http://127.0.0.1:8890/imageJson'],
 };
-
-process.on('SIGINT',  () => { console.log('[bridge] SIGINT received, exiting');  process.exit(0); });
-process.on('SIGTERM', () => { console.log('[bridge] SIGTERM received, exiting'); process.exit(0); });
 
 // ===== ユーティリティ =====
 function getJSON(url) {
