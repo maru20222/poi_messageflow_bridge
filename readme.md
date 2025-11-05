@@ -33,18 +33,19 @@ poi（艦これ専用ブラウザ）→ logbook-kai-messageflow（航海日誌�
 
 ## ログファイル
 
-- 本ブリッジは既定で **ファイルにログを出力**します。  
-  - 場所（既定）: `%USERPROFILE%\Documents\logbook-bridge\poi_messageflow_bridge.log`
+- 本ブリッジは既定で **日時付きログをファイル出力**します（**月次ローテーション**）。
+  - 出力先（既定）: `%USERPROFILE%\Documents\logbook-bridge\logs\YYYY-MM.log`
+  - 詳細ログはファイルを参照してください（コンソール出力は最小限です）。
 
 ### ログに出る代表的な行
-- `[ws] connected api → ws://127.0.0.1:8890/api/websocket`
-- `[ws] connected image → ws://127.0.0.1:8890/image/websocket`
-- `[ws] connected imageJson → ws://127.0.0.1:8890/imageJson/websocket`
-- `[api] sent (Fetch) /kcsapi/api_start2/getData`
-- `[api] sent (Fetch) /kcsapi/api_get_member/require_info`
-- `[api] sent (Fetch) /kcsapi/api_port/port`
-- `[image] sent /kcs2/...`
-- `[imageJson] sent /kcs2/...json`
+- `[2025-11-05 12:32:01.637][INFO] [ws] connected imageJson → ws://127.0.0.1:8890/imageJson/websocket`
+- `[2025-11-05 12:32:01.640][INFO] [ws] connected image → ws://127.0.0.1:8890/image/websocket`
+- `[2025-11-05 12:32:01.641][INFO] [ws] connected api → ws://127.0.0.1:8890/api/websocket`
+- `[2025-11-05 12:32:09.892][INFO] [api] sent (Fetch) /kcsapi/api_start2/getData (base64)`
+- `[2025-11-05 12:32:10.108][INFO] [api] sent (Fetch) /kcsapi/api_get_member/require_info (base64)`
+- `[2025-11-05 12:32:10.399][INFO] [api] sent (Fetch) /kcsapi/api_port/port (base64)`
+- `[2025-11-05 12:32:22.491][INFO] [image] sent /kcs2/...`
+- `[2025-11-05 12:32:42.179][INFO] [imageJson] sent /kcs2/...json`
 
 
 ## クイックスタート
@@ -55,10 +56,12 @@ poi（艦これ専用ブラウザ）→ logbook-kai-messageflow（航海日誌�
    - (3) **ブリッジ** `poi_messageflow_bridge.js` を起動（落ちたら自動再起動・多重起動防止・ログ出力）
 3. poi で艦これにログイン
 4. ブリッジログファイルに以下が出ればOK  
-   - `[ws] connected api/image/imageJson`  
-   - `[api] sent (Fetch) /kcsapi/api_start2/getData`  
-   - `[api] sent (Fetch) /kcsapi/api_get_member/require_info`  
-   - `[api] sent (Fetch) /kcsapi/api_port/port`
+    - `[2025-11-05 12:32:01.637][INFO] [ws] connected imageJson → ws://127.0.0.1:8890/imageJson/websocket`
+    - `[2025-11-05 12:32:01.640][INFO] [ws] connected image → ws://127.0.0.1:8890/image/websocket`
+    - `[2025-11-05 12:32:01.641][INFO] [ws] connected api → ws://127.0.0.1:8890/api/websocket`
+    - `[2025-11-05 12:32:09.892][INFO] [api] sent (Fetch) /kcsapi/api_start2/getData (base64)`
+    - `[2025-11-05 12:32:10.108][INFO] [api] sent (Fetch) /kcsapi/api_get_member/require_info (base64)`
+    - `[2025-11-05 12:32:10.399][INFO] [api] sent (Fetch) /kcsapi/api_port/port (base64)`
 5. messageflowの丸が緑、Queue（直近5分）が増えればOK
 
 ### messageflow の確認手順
