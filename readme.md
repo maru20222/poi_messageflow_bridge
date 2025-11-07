@@ -47,6 +47,42 @@ poi（艦これ専用ブラウザ）→ logbook-kai-messageflow（航海日誌�
 - `[2025-11-05 12:32:22.491][INFO] [image] sent /kcs2/...`
 - `[2025-11-05 12:32:42.179][INFO] [imageJson] sent /kcs2/...json`
 
+## 事前準備
+
+本ブリッジは Node.js と `ws` パッケージを使用します。初回のみ以下を実施してください。
+
+### 0) PowerShell/ターミナルを開く
+
+- スタートメニューで **「power」** と入力 → **Windows PowerShell** を選択して開く  
+- 権限は **通常ユーザーでOK**（管理者である必要はありません）
+- 以降のコマンドは、特記ない限り **Windows PowerShell** 上で実行します
+
+### 1) Node.js のインストール（Windows）
+- 公式サイトから **LTS（推奨版）** のインストーラを取得し、画面の指示に従ってインストールします。  
+  ※既定で PATH に追加されます。管理者権限は不要です。
+- 代替（お好みで）
+  - **winget**: `winget install OpenJS.NodeJS.LTS`
+  - **Chocolatey**: `choco install nodejs-lts -y`
+
+インストール確認：
+- `node -v` と `npm -v` がバージョンを表示すればOK。
+
+### 2) ブリッジフォルダへ移動
+- 例: `cd %USERPROFILE%\Documents\logbook-bridge`
+
+### 3) package.json の作成（無い場合のみ）
+- `npm init -y`
+
+### 4) 依存パッケージwsのインストール（必須）
+- `npm install ws`
+
+### 5) 自己確認（任意）
+- `dir node_modules\ws` で存在確認  
+- `node -p "require.resolve('ws')"` で解決パスが表示されればOK
+
+### 6) プロキシ環境で失敗する場合（任意）
+- `npm config set proxy http://USER:PASS@proxy.host:port`  
+- `npm config set https-proxy http://USER:PASS@proxy.host:port`
 
 ## クイックスタート
 1. `start_poi.bat` をダブルクリックする
@@ -120,6 +156,7 @@ poi（艦これ専用ブラウザ）→ logbook-kai-messageflow（航海日誌�
 ## よくある質問
 - logbook-kai-messageflow 丸が赤のまま → logbook-kai-messageflow再起動、8890の占有確認、ローカルWS許可
 - 何も送られない → poiにデバッグポートが付いているか、ログの `attached: webview …kancolle` を確認
+- `Error: Cannot find module 'ws'`→依存パッケージ`ws`がインストールされていません。**事前準備**を確認
 
 ## 設定（任意）
 - logbook-kai-messageflowポート変更時はスクリプト先頭の WS URL を修正
