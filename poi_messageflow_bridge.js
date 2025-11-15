@@ -17,7 +17,10 @@ const util = require('util');
 function initLogger(options = {}) {
   const cwdLogs = path.resolve(process.cwd(), 'logs');
   const baseDir = options.baseDir || cwdLogs;        // 作業ディレクトリ直下に logs/
-  const mirrorToStdout = process.env.LOG_STDOUT !== '0'; // 既定: コンソールにも出す。0で抑止
+  // LOG_STDOUT が '1' のときだけ mirrorToStdout は true（標準出力にも出す）となる。
+  //   - LOG_STDOUT = '1' → ファイル ＋ 標準出力
+  //   - 上記以外（未設定 / '0' / その他） → ファイルのみ
+  const mirrorToStdout = process.env.LOG_STDOUT === '1';
 
   if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
 
