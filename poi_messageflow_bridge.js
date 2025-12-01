@@ -120,6 +120,27 @@ const HTTP_FALLBACKS = {
   imageJson: ['http://127.0.0.1:8890/imageJson'],
 };
 
+// 直近の /kcsapi/ 送信を簡易デデュープ（CDP複数セッション対策）
+const recentApiSends = [];
+function shouldSkipApiSend(dedupeKey) {
+  const now = Date.now();
+  const TTL = 2000; // 2秒以内に同じキーが来たら重複とみなす
+
+  // 古いエントリを掃除
+  for (let i = recentApiSends.length - 1; i >= 0; i--) {
+    if (now - recentApiSends[i].ts > TTL) {
+      recentApiSends.splice(i, 1);
+    }
+  }
+
+  if (recentApiSends.some(e => e.key === dedupeKey)) {
+    return true; // 直近に同じものがあるのでスキップ
+  }
+
+  recentApiSends.push({ key: dedupeKey, ts: now });
+  return false;
+}
+
 // ===== ユーティリティ =====
 function getJSON(url) {
   return new Promise((resolve, reject) => {
@@ -313,20 +334,12 @@ function looksLikeBase64(s) {
       return;
     }
 
-    // レスポンス受信: /kcsapi, /kcs2 のみ本文取得
+    // レスポンス受信: /kcs2 のみ本文取得（/kcsapi は Fetch 側で処理）
     if (msg.method === 'Network.responseReceived') {
       const p = msg.params || {};
       const key = `${sid || ''}:${p.requestId}`;
       const info = reqInfo.get(key);
       if (!info || !info.url) return;
-
-      if (info.url.includes('/kcsapi/')) {
-        const cmd = send('Network.getResponseBody', { requestId: p.requestId }, sid);
-        const pendKey = `${cmd.sessionId || ''}:${cmd.id}`;
-        pending.set(pendKey, { url: info.url, method: info.method, postData: info.postData, kind: 'api' });
-        info._asked = true; reqInfo.set(key, info);
-        return;
-      }
 
       if (info.url.includes('/kcs2/')) {
         const cmd = send('Network.getResponseBody', { requestId: p.requestId }, sid);
@@ -380,6 +393,17 @@ function looksLikeBase64(s) {
           responseBody: res.body
         };
 
+        // Network 経由分との二重送信を避けるための簡易デデュープ
+        const dedupeKey =
+          ['fetch', payload.method, uri, payload.queryString, payload.postData, String(payload.responseBody).slice(0, 64)]
+            .join('|');
+
+        if (shouldSkipApiSend(dedupeKey)) {
+          // 送信はスキップするが、Fetch.continueResponse だけは必ず返す
+          send('Fetch.continueResponse', { requestId: meta.fetchRequestId }, sid);
+          return;
+        }
+
         let ok = wsApi.isReady() && wsApi.sendJson(payload);
         if (!ok) {
           for (const u2 of HTTP_FALLBACKS.api) { /* eslint-disable no-await-in-loop */
@@ -410,6 +434,15 @@ function looksLikeBase64(s) {
           responseBody: res.body
         };
 
+        // Fetch 経由分との二重送信を避ける
+        const dedupeKey =
+          ['net', payload.method, uri, payload.queryString, payload.postData, String(payload.responseBody).slice(0, 64)]
+            .join('|');
+
+        if (shouldSkipApiSend(dedupeKey)) {
+          return; // ネットワーク側の重複は黙って捨てる
+        }
+
         let ok = wsApi.isReady() && wsApi.sendJson(payload);
         if (!ok) {
           for (const u2 of HTTP_FALLBACKS.api) { /* eslint-disable no-await-in-loop */
@@ -417,9 +450,7 @@ function looksLikeBase64(s) {
             ok = true; break;
           }
         }
-        if (ok && (uri.endsWith('/api_get_member/questlist') || Math.random() < 0.1)) {
-          console.log('[api] sent', uri, isB64 ? '(base64)' : '');
-        }
+        console.log('[api] sent', uri, isB64 ? '(base64)' : '');
         return;
       }
 
