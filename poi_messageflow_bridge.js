@@ -124,7 +124,7 @@ const HTTP_FALLBACKS = {
 const recentApiSends = [];
 function shouldSkipApiSend(dedupeKey) {
   const now = Date.now();
-  const TTL = 2000; // 2秒以内に同じキーが来たら重複とみなす
+  const TTL = 300; // 0.3秒以内に同じキーが来たら重複とみなす
 
   // 古いエントリを掃除
   for (let i = recentApiSends.length - 1; i >= 0; i--) {
@@ -395,8 +395,7 @@ function looksLikeBase64(s) {
 
         // Network 経由分との二重送信を避けるための簡易デデュープ
         const dedupeKey =
-          ['fetch', payload.method, uri, payload.queryString, payload.postData, String(payload.responseBody).slice(0, 64)]
-            .join('|');
+          ['fetch', payload.method, uri, payload.queryString, payload.postData].join('|');
 
         if (shouldSkipApiSend(dedupeKey)) {
           // 送信はスキップするが、Fetch.continueResponse だけは必ず返す
@@ -436,8 +435,7 @@ function looksLikeBase64(s) {
 
         // Fetch 経由分との二重送信を避ける
         const dedupeKey =
-          ['net', payload.method, uri, payload.queryString, payload.postData, String(payload.responseBody).slice(0, 64)]
-            .join('|');
+          ['net', payload.method, uri, payload.queryString, payload.postData].join('|');
 
         if (shouldSkipApiSend(dedupeKey)) {
           return; // ネットワーク側の重複は黙って捨てる
